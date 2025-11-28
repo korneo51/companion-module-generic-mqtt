@@ -34,33 +34,33 @@ class GenericMqttInstance extends InstanceBase {
 		return configFields
 	}
 
-	async destroy() {
-		this._destroyMqtt()
-	}
+        async destroy() {
+                this._destroyMqtt()
+        }
 
-	_resubscribeToTopics() {
-		// Unsubscribe from everything
-		for (const topic of this.mqtt_topic_subscriptions.values()) {
-			try {
-				this.mqttClient.unsubscribe(topic, (err) => {
-					if (!err) {
-						this.log('debug', `Successfully unsubscribed from topic: ${topic}`)
-						return
-					}
+        _resubscribeToTopics() {
+                // Unsubscribe from everything
+                for (const topic of this.mqtt_topic_subscriptions.keys()) {
+                        try {
+                                this.mqttClient.unsubscribe(topic, (err) => {
+                                        if (!err) {
+                                                this.log('debug', `Successfully unsubscribed from topic: ${topic}`)
+                                                return
+                                        }
 
-					this.log('debug', `Failed to unsubscribe from topic: ${topic}. Error: ${err}`)
-				})
-			} catch (e) {
-				// Ignore
-			}
-		}
+                                        this.log('debug', `Failed to unsubscribe from topic: ${topic}. Error: ${err}`)
+                                })
+                        } catch (e) {
+                                // Ignore
+                        }
+                }
 
-		this.mqtt_topic_subscriptions = new Map()
-		this.mqtt_topic_value_cache = new Map()
+                this.mqtt_topic_subscriptions = new Map()
+                this.mqtt_topic_value_cache = new Map()
 
-		// And then subscribe
-		this.subscribeFeedbacks()
-	}
+                // And then subscribe
+                this.subscribeFeedbacks()
+        }
 
 	_initFeedbackDefinitions() {
 		this.setFeedbackDefinitions({
@@ -124,28 +124,28 @@ class GenericMqttInstance extends InstanceBase {
 					color: combineRgb(0, 0, 0),
 					bgcolor: combineRgb(0, 255, 0),
 				},
-				options: [
-					{
-						type: 'textinput',
-						label: 'Topic',
-						id: 'subscribeTopic',
-						default: '',
-						useVariables: true,
-					},
-					{
-						type: 'textinput',
-						label: 'JSON Path (Blank if not json)',
-						id: 'subpath',
-						default: '',
-					},
-					{
-						type: 'textinput',
-						label: 'Value',
-						id: 'value',
-						default: '',
-						useVariables: true,
-					},
-					{
+options: [
+{
+type: 'textinput',
+label: 'Topic',
+id: 'subscribeTopic',
+default: '',
+useVariables: true,
+},
+{
+type: 'textinput',
+label: 'JSON Path (Blank if not json)',
+id: 'subpath',
+default: '',
+},
+{
+type: 'textinput',
+label: 'Value',
+id: 'value',
+default: '',
+useVariables: true,
+},
+{
 						type: 'dropdown',
 						label: 'Comparison',
 						id: 'comparison',
@@ -160,28 +160,33 @@ class GenericMqttInstance extends InstanceBase {
 						],
 					},
 				],
-				callback: async (feedback) => {
-					let subscribeTopic = await this.parseVariablesInString(feedback.options.subscribeTopic)
-					let value = this.mqtt_topic_value_cache.get(subscribeTopic)
-					if (value !== undefined) {
-						if (feedback.options.subpath) {
-							value = objectPath.get(JSON.parse(value), feedback.options.subpath)
-						}
+                                callback: async (feedback) => {
+                                        let subscribeTopic = await this.parseVariablesInString(feedback.options.subscribeTopic)
+                                        let value = this.mqtt_topic_value_cache.get(subscribeTopic)
+                                        if (value !== undefined) {
+                                                if (feedback.options.subpath) {
+                                                        try {
+                                                                value = objectPath.get(JSON.parse(value), feedback.options.subpath)
+                                                        } catch (e) {
+                                                                this.log('debug', `Failed to parse JSON payload for topic ${subscribeTopic}: ${e}`)
+                                                                value = undefined
+}
+}
 
-						const targetValue = await this.parseVariablesInString(feedback.options.value)
-						const checks = {
-							eq: value == targetValue,
-							ne: value != targetValue,
-							lt: value < targetValue,
-							lte: value <= targetValue,
-							gt: value > targetValue,
-							gte: value >= targetValue,
-						}
-						return checks[feedback.options.comparison] || false
-					}
+                                                const targetValue = await this.parseVariablesInString(feedback.options.value)
+                                                const checks = {
+                                                        eq: value == targetValue,
+                                                        ne: value != targetValue,
+                                                        lt: value < targetValue,
+                                                        lte: value <= targetValue,
+                                                        gt: value > targetValue,
+                                                        gte: value >= targetValue,
+}
+                                                return checks[feedback.options.comparison] || false
+}
 
-					return false
-				},
+                                        return false
+},
 				subscribe: async (feedback) => {
 					let subscribeTopic = await this.parseVariablesInString(feedback.options.subscribeTopic)
 					this._subscribeToTopic(subscribeTopic, feedback.id, 'mqtt_value')
@@ -299,24 +304,46 @@ class GenericMqttInstance extends InstanceBase {
 		}
 	}
 
-	_initMqtt() {
-		this._destroyMqtt()
+_initMqtt() {
+this._destroyMqtt()
 
-		try {
-			if (this.config.broker_ip) {
-				const brokerPort = isNaN(parseInt(this.config.port)) ? '' : `:${this.config.port}`
-				const brokerUrl = `${this.config.protocol}${this.config.broker_ip}${brokerPort}`
+                        try {
+if (this.config.broker_ip) {
+const brokerPort = isNaN(parseInt(this.config.port)) ? '' : `:${this.config.port}`
+const brokerUrl = `${this.config.protocol}${this.config.broker_ip}${brokerPort}`
 
-				this.updateStatus(InstanceStatus.Connecting)
+this.updateStatus(InstanceStatus.Connecting)
 
-				const options = {
-					username: this.config.user,
-					password: this.config.password,
-				}
+const options = {
+username: this.config.user,
+password: this.config.password,
+keepalive: Number.isFinite(Number(this.config.keepalive)) ? Number(this.config.keepalive) : undefined,
+reconnectPeriod: Number.isFinite(Number(this.config.reconnectPeriod))
+? Number(this.config.reconnectPeriod)
+: undefined,
+connectTimeout: Number.isFinite(Number(this.config.connectTimeout))
+? Number(this.config.connectTimeout)
+: undefined,
+clean: this.config.cleanSession,
+}
 
-				if (this.config.clientId) {
-					options.clientId = this.config.clientId
-				}
+if (this.config.clientId) {
+options.clientId = this.config.clientId
+}
+
+if (this.config.protocol?.startsWith('mqtts') || this.config.protocol?.startsWith('wss')) {
+options.rejectUnauthorized = this.config.rejectUnauthorized
+options.servername = this.config.tlsServername || undefined
+}
+
+if (this.config.willTopic) {
+options.will = {
+topic: this.config.willTopic,
+payload: this.config.willPayload ?? '',
+qos: Number.isFinite(Number(this.config.willQos)) ? Number(this.config.willQos) : 0,
+retain: this.config.willRetain,
+}
+}
 
 				this.mqttClient = mqtt.connect(brokerUrl, options)
 
@@ -405,18 +432,25 @@ class GenericMqttInstance extends InstanceBase {
 	}
 
 	_updateFeedbackVariables(variables) {
-		const newValues = {}
+                const newValues = {}
 
-		for (const [topic, data] of variables) {
-			let msgValue = this.mqtt_topic_value_cache.get(topic)
-			if (msgValue) {
-				if (data.subpath) {
-					msgValue = objectPath.get(JSON.parse(msgValue), data.subpath)
-				}
+                for (const [topic, data] of variables) {
+                        let msgValue = this.mqtt_topic_value_cache.get(topic)
+                        if (msgValue !== undefined) {
+                                if (data.subpath) {
+                        try {
+                                                msgValue = objectPath.get(JSON.parse(msgValue), data.subpath)
+                                                        } catch (e) {
+                                                this.log('debug', `Failed to parse JSON payload for topic ${topic}: ${e}`)
+                                                msgValue = undefined
+}
+}
 
-				newValues[data.variableName] = typeof msgValue === 'object' ? JSON.stringify(msgValue) : msgValue
-			}
-		}
+                        if (msgValue !== undefined) {
+                                        newValues[data.variableName] = typeof msgValue === 'object' ? JSON.stringify(msgValue) : msgValue
+}
+}
+}
 
 		// this.log('debug', `Updating variable values: ${JSON.stringify(newValues)}`)
 
